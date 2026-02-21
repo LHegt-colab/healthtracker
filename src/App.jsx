@@ -1,3 +1,4 @@
+import React, { createContext } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import Navbar from './components/layout/Navbar'
 import Toast from './components/ui/Toast'
@@ -8,9 +9,7 @@ import Bloeddruk from './pages/Bloeddruk'
 import GewichtVoeding from './pages/GewichtVoeding'
 import Rapporten from './pages/Rapporten'
 
-export const ToastContext = React.createContext(null)
-
-import React from 'react'
+export const ToastContext = createContext(null)
 
 export default function App() {
   const { toasts, addToast, removeToast } = useToast()
