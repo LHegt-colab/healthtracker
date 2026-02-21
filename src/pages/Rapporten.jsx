@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
-import { BarChart2, TrendingUp } from 'lucide-react'
+import { BarChart2, Printer } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import PrintReport from '../components/ui/PrintReport'
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   Legend, ResponsiveContainer, ReferenceLine, Area, AreaChart, ComposedChart
@@ -42,6 +43,7 @@ const CustomTooltip = ({ active, payload, label, unit }) => {
 export default function Rapporten() {
   const [period, setPeriod] = useState(30)
   const [loading, setLoading] = useState(true)
+  const [showPrint, setShowPrint] = useState(false)
   const [bpData, setBpData] = useState([])
   const [weightData, setWeightData] = useState([])
   const [activityData, setActivityData] = useState([])
@@ -146,7 +148,12 @@ export default function Rapporten() {
           </h1>
           <p className="text-gray-500 text-sm mt-1">Overzicht van je gezondheidsdata</p>
         </div>
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-2 flex-wrap items-center">
+          {!loading && (
+            <button onClick={() => setShowPrint(true)} className="btn-ghost flex items-center gap-2 border border-gray-200">
+              <Printer size={16} /> Afdrukken
+            </button>
+          )}
           {PERIODS.map(p => (
             <button
               key={p.days}
@@ -303,6 +310,18 @@ export default function Rapporten() {
           </div>
         </div>
       )}
+
+      <PrintReport
+        isOpen={showPrint}
+        onClose={() => setShowPrint(false)}
+        type="rapporten"
+        title={`Gezondheidsrapport – laatste ${period} dagen`}
+        bpData={bpData}
+        weightData={weightData}
+        actBySport={actBySport}
+        nutData={nutData}
+        period={period}
+      />
     </div>
   )
 }

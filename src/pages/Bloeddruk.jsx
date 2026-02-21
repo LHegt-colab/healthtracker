@@ -1,8 +1,9 @@
 import { useState, useEffect, useContext } from 'react'
-import { Plus, Pencil, Trash2, Heart } from 'lucide-react'
+import { Plus, Pencil, Trash2, Heart, Printer } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import Modal from '../components/ui/Modal'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
+import PrintReport from '../components/ui/PrintReport'
 import { ToastContext } from '../App'
 import { format, startOfToday, subDays } from 'date-fns'
 import { nl } from 'date-fns/locale'
@@ -113,6 +114,7 @@ export default function Bloeddruk() {
   const [editing, setEditing] = useState(null)
   const [deleteId, setDeleteId] = useState(null)
   const [filterDays, setFilterDays] = useState(30)
+  const [showPrint, setShowPrint] = useState(false)
 
   useEffect(() => { loadEntries() }, [filterDays])
 
@@ -178,9 +180,14 @@ export default function Bloeddruk() {
           </h1>
           <p className="text-gray-500 text-sm mt-1">{entries.length} metingen</p>
         </div>
-        <button onClick={() => { setEditing(null); setShowForm(true) }} className="btn-primary flex items-center gap-2">
-          <Plus size={18} /> Meting toevoegen
-        </button>
+        <div className="flex gap-2">
+          <button onClick={() => setShowPrint(true)} className="btn-ghost flex items-center gap-2 border border-gray-200">
+            <Printer size={16} /> Afdrukken
+          </button>
+          <button onClick={() => { setEditing(null); setShowForm(true) }} className="btn-primary flex items-center gap-2">
+            <Plus size={18} /> Meting toevoegen
+          </button>
+        </div>
       </div>
 
       {/* Stats & Filter */}
@@ -308,6 +315,15 @@ export default function Bloeddruk() {
         onConfirm={() => handleDelete(deleteId)}
         title="Meting verwijderen"
         message="Weet je zeker dat je deze meting wilt verwijderen?"
+      />
+
+      <PrintReport
+        isOpen={showPrint}
+        onClose={() => setShowPrint(false)}
+        type="bloeddruk"
+        title="Bloeddruk Rapport"
+        entries={entries}
+        period={filterDays}
       />
     </div>
   )

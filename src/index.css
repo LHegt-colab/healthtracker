@@ -64,3 +64,29 @@ body {
     @apply py-3 px-4 text-sm text-gray-700 border-b border-gray-100;
   }
 }
+
+/* ===== AFDRUK / PRINT STIJLEN ===== */
+@media print {
+  /* Verberg alles behalve het print-rapport (portal buiten #root) */
+  body > *:not(.print-report) {
+    display: none !important;
+  }
+
+  /* Toon het print-rapport */
+  .print-report {
+    display: block;
+    position: static;
+    background: white;
+  }
+
+  /* Verberg toolbar en knoppen */
+  .no-print {
+    display: none !important;
+  }
+
+  /* Pagina-instellingen */
+  @page {
+    size: A4;
+    margin: 0;
+  }
+}
