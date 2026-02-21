@@ -122,7 +122,7 @@ export default function Bloeddruk() {
       ? subDays(new Date(), filterDays).toISOString()
       : undefined
 
-    let q = supabase.from('blood_pressure').select('*').order('measured_at', { ascending: false })
+    let q = supabase.from('ht_blood_pressure').select('*').order('measured_at', { ascending: false })
     if (since) q = q.gte('measured_at', since)
 
     const { data, error } = await q
@@ -133,11 +133,11 @@ export default function Bloeddruk() {
 
   async function handleSave(payload, id) {
     if (id) {
-      const { error } = await supabase.from('blood_pressure').update(payload).eq('id', id)
+      const { error } = await supabase.from('ht_blood_pressure').update(payload).eq('id', id)
       if (error) { addToast('Fout bij opslaan', 'error'); return }
       addToast('Meting bijgewerkt')
     } else {
-      const { error } = await supabase.from('blood_pressure').insert(payload)
+      const { error } = await supabase.from('ht_blood_pressure').insert(payload)
       if (error) { addToast('Fout bij toevoegen', 'error'); return }
       addToast('Meting toegevoegd')
     }
@@ -145,7 +145,7 @@ export default function Bloeddruk() {
   }
 
   async function handleDelete(id) {
-    const { error } = await supabase.from('blood_pressure').delete().eq('id', id)
+    const { error } = await supabase.from('ht_blood_pressure').delete().eq('id', id)
     if (error) { addToast('Fout bij verwijderen', 'error'); return }
     addToast('Meting verwijderd')
     loadEntries()

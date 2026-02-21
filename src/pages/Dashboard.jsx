@@ -78,12 +78,12 @@ export default function Dashboard() {
     const weekAgo = subDays(today, 7)
 
     const [bpRes, weightRes, nutRes, actRes, recentActRes, recentBPRes] = await Promise.all([
-      supabase.from('blood_pressure').select('*').order('measured_at', { ascending: false }).limit(1),
-      supabase.from('weight_entries').select('*').order('measured_at', { ascending: false }).limit(2),
-      supabase.from('nutrition_entries').select('calories_kcal').gte('logged_at', today.toISOString()),
-      supabase.from('activities').select('id').gte('activity_date', weekAgo.toISOString().split('T')[0]),
-      supabase.from('activities').select('*, activity_types(name, icon)').order('activity_date', { ascending: false }).limit(5),
-      supabase.from('blood_pressure').select('*').order('measured_at', { ascending: false }).limit(5),
+      supabase.from('ht_blood_pressure').select('*').order('measured_at', { ascending: false }).limit(1),
+      supabase.from('ht_weight_entries').select('*').order('measured_at', { ascending: false }).limit(2),
+      supabase.from('ht_nutrition_entries').select('calories_kcal').gte('logged_at', today.toISOString()),
+      supabase.from('ht_activities').select('id').gte('activity_date', weekAgo.toISOString().split('T')[0]),
+      supabase.from('ht_activities').select('*, ht_activity_types(name, icon)').order('activity_date', { ascending: false }).limit(5),
+      supabase.from('ht_blood_pressure').select('*').order('measured_at', { ascending: false }).limit(5),
     ])
 
     const todayCalories = nutRes.data?.reduce((sum, r) => sum + (r.calories_kcal || 0), 0)
@@ -100,8 +100,8 @@ export default function Dashboard() {
     })
 
     setRecentActivities(recentActRes.data?.map(a => ({
-      icon: a.activity_types?.icon ?? '🏃',
-      type: a.activity_types?.name ?? 'Activiteit',
+      icon: a.ht_activity_types?.icon ?? '🏃',
+      type: a.ht_activity_types?.name ?? 'Activiteit',
       date: format(new Date(a.activity_date), 'd MMMM', { locale: nl }),
       main: a.duration_seconds ? `${Math.floor(a.duration_seconds / 60)} min` : '—',
       sub: a.distance_km ? `${a.distance_km} km` : a.calories_burned ? `${a.calories_burned} kcal` : '',

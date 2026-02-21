@@ -193,8 +193,8 @@ export default function GewichtVoeding() {
   async function loadAll() {
     setLoading(true)
     const [wRes, nRes] = await Promise.all([
-      supabase.from('weight_entries').select('*').order('measured_at', { ascending: false }),
-      supabase.from('nutrition_entries').select('*').order('logged_at', { ascending: false }),
+      supabase.from('ht_weight_entries').select('*').order('measured_at', { ascending: false }),
+      supabase.from('ht_nutrition_entries').select('*').order('logged_at', { ascending: false }),
     ])
     setWeights(wRes.data ?? [])
     setNutrition(nRes.data ?? [])
@@ -203,11 +203,11 @@ export default function GewichtVoeding() {
 
   async function saveWeight(payload, id) {
     if (id) {
-      const { error } = await supabase.from('weight_entries').update(payload).eq('id', id)
+      const { error } = await supabase.from('ht_weight_entries').update(payload).eq('id', id)
       if (error) { addToast('Fout bij opslaan', 'error'); return }
       addToast('Gewicht bijgewerkt')
     } else {
-      const { error } = await supabase.from('weight_entries').insert(payload)
+      const { error } = await supabase.from('ht_weight_entries').insert(payload)
       if (error) { addToast('Fout bij toevoegen', 'error'); return }
       addToast('Gewicht toegevoegd')
     }
@@ -215,7 +215,7 @@ export default function GewichtVoeding() {
   }
 
   async function deleteWeight(id) {
-    const { error } = await supabase.from('weight_entries').delete().eq('id', id)
+    const { error } = await supabase.from('ht_weight_entries').delete().eq('id', id)
     if (error) { addToast('Fout bij verwijderen', 'error'); return }
     addToast('Gewicht verwijderd')
     loadAll()
@@ -223,11 +223,11 @@ export default function GewichtVoeding() {
 
   async function saveNut(payload, id) {
     if (id) {
-      const { error } = await supabase.from('nutrition_entries').update(payload).eq('id', id)
+      const { error } = await supabase.from('ht_nutrition_entries').update(payload).eq('id', id)
       if (error) { addToast('Fout bij opslaan', 'error'); return }
       addToast('Voeding bijgewerkt')
     } else {
-      const { error } = await supabase.from('nutrition_entries').insert(payload)
+      const { error } = await supabase.from('ht_nutrition_entries').insert(payload)
       if (error) { addToast('Fout bij toevoegen', 'error'); return }
       addToast('Voeding toegevoegd')
     }
@@ -235,7 +235,7 @@ export default function GewichtVoeding() {
   }
 
   async function deleteNut(id) {
-    const { error } = await supabase.from('nutrition_entries').delete().eq('id', id)
+    const { error } = await supabase.from('ht_nutrition_entries').delete().eq('id', id)
     if (error) { addToast('Fout bij verwijderen', 'error'); return }
     addToast('Voeding verwijderd')
     loadAll()

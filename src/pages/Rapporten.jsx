@@ -56,11 +56,11 @@ export default function Rapporten() {
     const since = subDays(new Date(), period).toISOString()
 
     const [bpRes, wRes, aRes, nRes, typesRes] = await Promise.all([
-      supabase.from('blood_pressure').select('*').gte('measured_at', since).order('measured_at'),
-      supabase.from('weight_entries').select('*').gte('measured_at', since).order('measured_at'),
-      supabase.from('activities').select('*, activity_types(name, icon)').gte('activity_date', since.split('T')[0]).order('activity_date'),
-      supabase.from('nutrition_entries').select('*').gte('logged_at', since).order('logged_at'),
-      supabase.from('activity_types').select('*'),
+      supabase.from('ht_blood_pressure').select('*').gte('measured_at', since).order('measured_at'),
+      supabase.from('ht_weight_entries').select('*').gte('measured_at', since).order('measured_at'),
+      supabase.from('ht_activities').select('*, ht_activity_types(name, icon)').gte('activity_date', since.split('T')[0]).order('activity_date'),
+      supabase.from('ht_nutrition_entries').select('*').gte('logged_at', since).order('logged_at'),
+      supabase.from('ht_activity_types').select('*'),
     ])
 
     // Blood pressure: daily averages
@@ -106,8 +106,8 @@ export default function Rapporten() {
     // Activities by sport type
     const byType = {}
     ;(aRes.data ?? []).forEach(a => {
-      const name = a.activity_types?.name ?? 'Onbekend'
-      const icon = a.activity_types?.icon ?? '🏃'
+      const name = a.ht_activity_types?.name ?? 'Onbekend'
+      const icon = a.ht_activity_types?.icon ?? '🏃'
       if (!byType[name]) byType[name] = { name: `${icon} ${name}`, count: 0, minuten: 0, kcal: 0 }
       byType[name].count++
       byType[name].minuten += Math.round((a.duration_seconds ?? 0) / 60)

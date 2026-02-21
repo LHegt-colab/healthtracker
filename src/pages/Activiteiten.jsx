@@ -167,7 +167,7 @@ function TypeManager({ types, onRefresh, onClose }) {
 
   async function handleAdd() {
     if (!name.trim()) return
-    const { error } = await supabase.from('activity_types').insert({
+    const { error } = await supabase.from('ht_activity_types').insert({
       name: name.trim(), icon, is_custom: true, fields,
     })
     if (error) { addToast('Fout bij toevoegen', 'error'); return }
@@ -179,7 +179,7 @@ function TypeManager({ types, onRefresh, onClose }) {
   }
 
   async function handleDelete(id) {
-    const { error } = await supabase.from('activity_types').delete().eq('id', id)
+    const { error } = await supabase.from('ht_activity_types').delete().eq('id', id)
     if (error) { addToast('Kan standaard type niet verwijderen', 'error'); return }
     addToast('Sporttype verwijderd')
     onRefresh()
@@ -294,8 +294,8 @@ export default function Activiteiten() {
   async function loadAll() {
     setLoading(true)
     const [typesRes, actRes] = await Promise.all([
-      supabase.from('activity_types').select('*').order('name'),
-      supabase.from('activities').select('*, activity_types(name, icon)').order('activity_date', { ascending: false }).order('created_at', { ascending: false }),
+      supabase.from('ht_activity_types').select('*').order('name'),
+      supabase.from('ht_activities').select('*, ht_activity_types(name, icon)').order('activity_date', { ascending: false }).order('created_at', { ascending: false }),
     ])
     setTypes(typesRes.data ?? [])
     setActivities(actRes.data ?? [])
@@ -304,11 +304,11 @@ export default function Activiteiten() {
 
   async function handleSave(payload, id) {
     if (id) {
-      const { error } = await supabase.from('activities').update(payload).eq('id', id)
+      const { error } = await supabase.from('ht_activities').update(payload).eq('id', id)
       if (error) { addToast('Fout bij opslaan', 'error'); return }
       addToast('Activiteit bijgewerkt')
     } else {
-      const { error } = await supabase.from('activities').insert(payload)
+      const { error } = await supabase.from('ht_activities').insert(payload)
       if (error) { addToast('Fout bij toevoegen', 'error'); return }
       addToast('Activiteit toegevoegd')
     }
@@ -316,7 +316,7 @@ export default function Activiteiten() {
   }
 
   async function handleDelete(id) {
-    const { error } = await supabase.from('activities').delete().eq('id', id)
+    const { error } = await supabase.from('ht_activities').delete().eq('id', id)
     if (error) { addToast('Fout bij verwijderen', 'error'); return }
     addToast('Activiteit verwijderd')
     loadAll()
@@ -409,8 +409,8 @@ export default function Activiteiten() {
                     <tr key={a.id} className="hover:bg-gray-50 transition-colors">
                       <td className="table-cell">
                         <span className="flex items-center gap-2 font-medium">
-                          <span className="text-lg">{a.activity_types?.icon ?? '🏃'}</span>
-                          {a.activity_types?.name ?? '—'}
+                          <span className="text-lg">{a.ht_activity_types?.icon ?? '🏃'}</span>
+                          {a.ht_activity_types?.name ?? '—'}
                         </span>
                       </td>
                       <td className="table-cell">{format(new Date(a.activity_date), 'd MMM yyyy', { locale: nl })}</td>
