@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase'
 import Modal from '../components/ui/Modal'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import PrintReport from '../components/ui/PrintReport'
-import { ToastContext } from '../App'
+import { ToastContext, ProfileContext } from '../App'
 import { format, startOfToday, subDays } from 'date-fns'
 import { nl } from 'date-fns/locale'
 
@@ -108,6 +108,7 @@ function BPForm({ initial, onSave, onClose }) {
 
 export default function Bloeddruk() {
   const addToast = useContext(ToastContext)
+  const { profile } = useContext(ProfileContext)
   const [entries, setEntries] = useState([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -324,6 +325,7 @@ export default function Bloeddruk() {
         title="Bloeddruk Rapport"
         entries={entries}
         period={filterDays}
+        profile={profile}
       />
     </div>
   )

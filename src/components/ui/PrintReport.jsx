@@ -26,9 +26,7 @@ function PrintTable({ headers, rows }) {
       <tbody>
         {rows.map((row, i) => (
           <tr key={i} style={{ background: i % 2 === 1 ? '#f5f7fb' : 'white' }}>
-            {row.map((cell_, j) => (
-              <td key={j} style={cell}>{cell_ ?? '—'}</td>
-            ))}
+            {row.map((c, j) => <td key={j} style={cell}>{c ?? '—'}</td>)}
           </tr>
         ))}
       </tbody>
@@ -48,17 +46,28 @@ function StatBox({ value, label }) {
   )
 }
 
-function PatientBox() {
+function PatientBox({ profile }) {
+  const fields = [
+    { label: 'Naam patiënt', value: profile?.naam },
+    { label: 'Geboortedatum', value: profile?.geboortedatum
+      ? (() => { try { return format(new Date(profile.geboortedatum), 'd MMMM yyyy', { locale: nl }) } catch { return profile.geboortedatum } })()
+      : '' },
+    { label: 'Huisarts / zorgverlener', value: profile?.huisarts },
+    { label: 'BSN / Patiëntnummer', value: profile?.bsn },
+  ]
+
   return (
     <div style={{
       border: '0.3mm solid #ccc', borderRadius: '2mm', padding: '3mm 4mm',
       marginBottom: '5mm', display: 'grid', gridTemplateColumns: '1fr 1fr',
       gap: '2mm 8mm', fontSize: '9pt',
     }}>
-      {['Naam patiënt', 'Geboortedatum', 'Huisarts / zorgverlener', 'BSN / Patiëntnummer'].map(label => (
+      {fields.map(({ label, value }) => (
         <div key={label} style={{ borderBottom: '0.3mm solid #ccc', paddingBottom: '2mm' }}>
           <span style={{ display: 'block', fontSize: '7.5pt', color: '#888' }}>{label}</span>
-          <span style={{ display: 'block', minHeight: '5mm' }}>&nbsp;</span>
+          <span style={{ display: 'block', minHeight: '5mm', fontWeight: value ? 500 : 400, color: value ? '#000' : '#ccc' }}>
+            {value || '(invullen)'}
+          </span>
         </div>
       ))}
     </div>
@@ -98,111 +107,128 @@ function H1({ children }) {
 }
 
 function H2({ children }) {
-  return (
-    <h2 style={{ fontSize: '13pt', fontWeight: 600, color: '#1b3a6b', margin: '6mm 0 3mm' }}>{children}</h2>
-  )
+  return <h2 style={{ fontSize: '13pt', fontWeight: 600, color: '#1b3a6b', margin: '6mm 0 3mm' }}>{children}</h2>
 }
 
-// ── Blood pressure report ─────────────────────────────────────────
+// ── Blood pressure content ────────────────────────────────────────
 
-function BloeddrukContent({ entries = [], period, printDate }) {
+function BloeddrukSection({ entries = [], showRefTable = true }) {
   const sorted = [...entries].sort((a, b) => new Date(b.measured_at) - new Date(a.measured_at))
   const withHR = sorted.filter(e => e.heart_rate)
   const avg = sorted.length ? {
     sys: Math.round(sorted.reduce((s, e) => s + e.systolic, 0) / sorted.length),
     dia: Math.round(sorted.reduce((s, e) => s + e.diastolic, 0) / sorted.length),
-    hr: withHR.length
-      ? Math.round(withHR.reduce((s, e) => s + e.heart_rate, 0) / withHR.length)
-      : null,
+    hr: withHR.length ? Math.round(withHR.reduce((s, e) => s + e.heart_rate, 0) / withHR.length) : null,
   } : null
 
   return (
     <>
-      <H1>Bloeddruk Rapport</H1>
-      <PatientBox />
-      <Meta period={period} count={sorted.length} printDate={printDate} />
-
       {avg && (
-        <div style={{ display: 'flex', gap: '4mm', marginBottom: '6mm', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '4mm', marginBottom: '5mm', flexWrap: 'wrap' }}>
           <StatBox value={`${avg.sys}/${avg.dia}`} label="Gemiddelde bloeddruk (mmHg)" />
           {avg.hr && <StatBox value={avg.hr} label="Gem. hartslag (bpm)" />}
           <StatBox value={sorted.length} label="Metingen totaal" />
           <StatBox value={bpLabel(avg.sys, avg.dia)} label="Gemiddelde categorie" />
         </div>
       )}
+      {sorted.length === 0
+        ? <p style={{ fontSize: '9pt', color: '#888', margin: '3mm 0' }}>Geen bloeddrukmetingen in deze periode.</p>
+        : (
+          <PrintTable
+            headers={['Datum', 'Tijd', 'Systolisch', 'Diastolisch', 'Hartslag', 'Categorie', 'Opmerkingen']}
+            rows={sorted.map(e => [
+              format(new Date(e.measured_at.split('T')[0]), 'd MMM yyyy', { locale: nl }),
+              e.measured_at.split('T')[1]?.substring(0, 5),
+              `${e.systolic} mmHg`,
+              `${e.diastolic} mmHg`,
+              e.heart_rate ? `${e.heart_rate} bpm` : null,
+              bpLabel(e.systolic, e.diastolic),
+              e.notes,
+            ])}
+          />
+        )
+      }
+      {showRefTable && (
+        <>
+          <H2>Referentiewaarden (WHO / ESC)</H2>
+          <PrintTable
+            headers={['Categorie', 'Systolisch', 'Diastolisch']}
+            rows={[
+              ['Optimaal', '< 120 mmHg', '< 80 mmHg'],
+              ['Normaal', '120–129 mmHg', '80–84 mmHg'],
+              ['Hoog-normaal', '130–139 mmHg', '85–89 mmHg'],
+              ['Hypertensie graad 1', '140–159 mmHg', '90–99 mmHg'],
+              ['Hypertensie graad 2', '160–179 mmHg', '100–109 mmHg'],
+              ['Hypertensie graad 3', '≥ 180 mmHg', '≥ 110 mmHg'],
+            ]}
+          />
+        </>
+      )}
+    </>
+  )
+}
 
+// ── Stand-alone blood pressure report (from Bloeddruk page) ──────
+
+function BloeddrukContent({ entries = [], period, printDate, profile }) {
+  return (
+    <>
+      <H1>Bloeddruk Rapport</H1>
+      <PatientBox profile={profile} />
+      <Meta period={period} count={entries.length} printDate={printDate} />
       <H2>Meetwaarden</H2>
-      <PrintTable
-        headers={['Datum', 'Tijd', 'Systolisch', 'Diastolisch', 'Hartslag', 'Categorie', 'Opmerkingen']}
-        rows={sorted.map(e => [
-          format(new Date(e.measured_at.split('T')[0]), 'd MMM yyyy', { locale: nl }),
-          e.measured_at.split('T')[1]?.substring(0, 5),
-          `${e.systolic} mmHg`,
-          `${e.diastolic} mmHg`,
-          e.heart_rate ? `${e.heart_rate} bpm` : null,
-          bpLabel(e.systolic, e.diastolic),
-          e.notes,
-        ])}
-      />
-
-      <H2>Referentiewaarden (WHO / ESC)</H2>
-      <PrintTable
-        headers={['Categorie', 'Systolisch', 'Diastolisch']}
-        rows={[
-          ['Optimaal', '< 120 mmHg', '< 80 mmHg'],
-          ['Normaal', '120–129 mmHg', '80–84 mmHg'],
-          ['Hoog-normaal', '130–139 mmHg', '85–89 mmHg'],
-          ['Hypertensie graad 1', '140–159 mmHg', '90–99 mmHg'],
-          ['Hypertensie graad 2', '160–179 mmHg', '100–109 mmHg'],
-          ['Hypertensie graad 3', '≥ 180 mmHg', '≥ 110 mmHg'],
-        ]}
-      />
-
+      <BloeddrukSection entries={entries} showRefTable={true} />
       <PrintFooter printDate={printDate} />
     </>
   )
 }
 
-// ── General rapport report ────────────────────────────────────────
+// ── General rapport report with category selection ────────────────
 
-function RapportenContent({ bpData = [], weightData = [], actBySport = [], nutData = [], period, printDate }) {
+function RapportenContent({ rawBpEntries = [], weightData = [], actBySport = [], nutData = [], period, printDate, profile, selectedCategories = ['bloeddruk', 'gewicht', 'activiteiten', 'voeding'] }) {
+  const has = (key) => selectedCategories.includes(key)
+
   const totalSessions = actBySport.reduce((s, a) => s + a.count, 0)
   const totalMin = actBySport.reduce((s, a) => s + a.minuten, 0)
   const totalKcalBurned = actBySport.reduce((s, a) => s + a.kcal, 0)
 
+  // Summary stats for selected categories
+  const summaryBoxes = []
+  if (has('bloeddruk') && rawBpEntries.length > 0) summaryBoxes.push(<StatBox key="bp" value={rawBpEntries.length} label="Bloeddruk metingen" />)
+  if (has('gewicht') && weightData.length > 0) summaryBoxes.push(<StatBox key="w" value={weightData.length} label="Gewichtsmetingen" />)
+  if (has('activiteiten') && totalSessions > 0) {
+    summaryBoxes.push(<StatBox key="act" value={totalSessions} label="Activiteiten sessies" />)
+    summaryBoxes.push(<StatBox key="min" value={totalMin} label="Minuten actief" />)
+    if (totalKcalBurned > 0) summaryBoxes.push(<StatBox key="kcal" value={totalKcalBurned.toLocaleString()} label="Kcal verbrand" />)
+  }
+
   return (
     <>
       <H1>Gezondheidsrapport – Overzicht</H1>
-      <PatientBox />
+      <PatientBox profile={profile} />
       <Meta period={period} printDate={printDate} />
 
-      {/* Summary stats */}
-      <div style={{ display: 'flex', gap: '4mm', marginBottom: '6mm', flexWrap: 'wrap' }}>
-        {bpData.length > 0 && <StatBox value={bpData.length} label="Bloeddruk dagen" />}
-        {weightData.length > 0 && <StatBox value={weightData.length} label="Gewichtsmetingen" />}
-        {totalSessions > 0 && <StatBox value={totalSessions} label="Activiteiten sessies" />}
-        {totalKcalBurned > 0 && <StatBox value={totalKcalBurned.toLocaleString()} label="Kcal verbrand" />}
-        {totalMin > 0 && <StatBox value={totalMin} label="Minuten actief" />}
-      </div>
+      {summaryBoxes.length > 0 && (
+        <div style={{ display: 'flex', gap: '4mm', marginBottom: '6mm', flexWrap: 'wrap' }}>
+          {summaryBoxes}
+        </div>
+      )}
 
-      {/* Blood pressure */}
-      {bpData.length > 0 && (
+      {/* Bloeddruk */}
+      {has('bloeddruk') && (
         <>
-          <H2>📊 Bloeddruk – Daggemiddelden</H2>
-          <PrintTable
-            headers={['Datum', 'Gem. systolisch', 'Gem. diastolisch', 'Gem. hartslag']}
-            rows={bpData.map(d => [
-              d.fullDate ? format(new Date(d.fullDate), 'd MMM yyyy', { locale: nl }) : d.date,
-              `${d.systolisch} mmHg`,
-              `${d.diastolisch} mmHg`,
-              d.hartslag ? `${d.hartslag} bpm` : null,
-            ])}
-          />
+          <H2>📊 Bloeddruk metingen</H2>
+          <BloeddrukSection entries={rawBpEntries} showRefTable={selectedCategories.length === 1} />
+          {selectedCategories.length > 1 && (
+            <p style={{ fontSize: '8pt', color: '#888', marginBottom: '4mm' }}>
+              * Referentiewaarden: Optimaal &lt;120/&lt;80 · Normaal 120–129/80–84 · Hoog-normaal 130–139/85–89 · Gr.1 140–159/90–99 · Gr.2 160–179/100–109 · Gr.3 ≥180/≥110 mmHg
+            </p>
+          )}
         </>
       )}
 
-      {/* Weight */}
-      {weightData.length > 0 && (
+      {/* Gewicht */}
+      {has('gewicht') && weightData.length > 0 && (
         <>
           <H2>⚖️ Gewicht</H2>
           <PrintTable
@@ -212,8 +238,8 @@ function RapportenContent({ bpData = [], weightData = [], actBySport = [], nutDa
         </>
       )}
 
-      {/* Activities by sport */}
-      {actBySport.length > 0 && (
+      {/* Activiteiten */}
+      {has('activiteiten') && actBySport.length > 0 && (
         <>
           <H2>🏃 Activiteiten per sporttype</H2>
           <PrintTable
@@ -223,19 +249,13 @@ function RapportenContent({ bpData = [], weightData = [], actBySport = [], nutDa
         </>
       )}
 
-      {/* Nutrition */}
-      {nutData.length > 0 && (
+      {/* Voeding */}
+      {has('voeding') && nutData.length > 0 && (
         <>
           <H2>🥗 Voeding – Dagelijkse inname</H2>
           <PrintTable
             headers={['Datum', 'Calorieën', 'Eiwit (g)', 'Koolhydraten (g)', 'Vetten (g)']}
-            rows={nutData.map(d => [
-              d.date,
-              `${d.Calorieën} kcal`,
-              d.Eiwit,
-              d.Koolhydraten,
-              d.Vetten,
-            ])}
+            rows={nutData.map(d => [d.date, `${d.Calorieën} kcal`, d.Eiwit, d.Koolhydraten, d.Vetten])}
           />
         </>
       )}
@@ -270,9 +290,7 @@ export default function PrintReport({ isOpen, onClose, type, title, ...props }) 
         boxShadow: '0 2px 8px rgba(0,0,0,0.3)', gap: '12px',
       }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 600, fontSize: '15px' }}>
-            Afdrukvoorbeeld — {title}
-          </div>
+          <div style={{ fontWeight: 600, fontSize: '15px' }}>Afdrukvoorbeeld — {title}</div>
           <div style={{ fontSize: '12px', opacity: 0.7, marginTop: '2px' }}>
             Klik "Afdrukken" en kies <em>Opslaan als PDF</em> als bestemming
           </div>

@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useContext } from 'react'
 import { BarChart2, Printer } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import PrintReport from '../components/ui/PrintReport'
+import PrintCategoryModal from '../components/ui/PrintCategoryModal'
+import { ProfileContext } from '../App'
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   Legend, ResponsiveContainer, ReferenceLine, Area, AreaChart, ComposedChart
@@ -41,10 +43,14 @@ const CustomTooltip = ({ active, payload, label, unit }) => {
 }
 
 export default function Rapporten() {
+  const { profile } = useContext(ProfileContext)
   const [period, setPeriod] = useState(30)
   const [loading, setLoading] = useState(true)
+  const [showCategoryModal, setShowCategoryModal] = useState(false)
   const [showPrint, setShowPrint] = useState(false)
+  const [selectedCategories, setSelectedCategories] = useState([])
   const [bpData, setBpData] = useState([])
+  const [rawBpEntries, setRawBpEntries] = useState([])
   const [weightData, setWeightData] = useState([])
   const [activityData, setActivityData] = useState([])
   const [nutData, setNutData] = useState([])
@@ -64,6 +70,9 @@ export default function Rapporten() {
       supabase.from('ht_nutrition_entries').select('*').gte('logged_at', since).order('logged_at'),
       supabase.from('ht_activity_types').select('*'),
     ])
+
+    // Raw BP entries for print report
+    setRawBpEntries(bpRes.data ?? [])
 
     // Blood pressure: daily averages
     const bpByDay = {}
@@ -150,7 +159,7 @@ export default function Rapporten() {
         </div>
         <div className="flex gap-2 flex-wrap items-center">
           {!loading && (
-            <button onClick={() => setShowPrint(true)} className="btn-ghost flex items-center gap-2 border border-gray-200">
+            <button onClick={() => setShowCategoryModal(true)} className="btn-ghost flex items-center gap-2 border border-gray-200">
               <Printer size={16} /> Afdrukken
             </button>
           )}
@@ -311,16 +320,28 @@ export default function Rapporten() {
         </div>
       )}
 
+      <PrintCategoryModal
+        isOpen={showCategoryModal}
+        onClose={() => setShowCategoryModal(false)}
+        onPrint={cats => {
+          setSelectedCategories(cats)
+          setShowCategoryModal(false)
+          setShowPrint(true)
+        }}
+      />
+
       <PrintReport
         isOpen={showPrint}
         onClose={() => setShowPrint(false)}
         type="rapporten"
         title={`Gezondheidsrapport – laatste ${period} dagen`}
-        bpData={bpData}
+        rawBpEntries={rawBpEntries}
         weightData={weightData}
         actBySport={actBySport}
         nutData={nutData}
         period={period}
+        profile={profile}
+        selectedCategories={selectedCategories}
       />
     </div>
   )
