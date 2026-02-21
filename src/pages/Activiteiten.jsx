@@ -154,9 +154,9 @@ function TypeManager({ types, onRefresh, onClose }) {
   const [deleteId, setDeleteId] = useState(null)
 
   const fieldOptions = [
-    { key: 'distance', label: 'Afstand' },
-    { key: 'speed', label: 'Snelheid' },
-    { key: 'calories', label: 'Calorieën' },
+    { key: 'distance_km', label: 'Afstand' },
+    { key: 'speed_kmh', label: 'Snelheid' },
+    { key: 'calories_burned', label: 'Calorieën' },
     { key: 'avg_bpm', label: 'Gem. hartslag' },
     { key: 'max_bpm', label: 'Max. hartslag' },
   ]
