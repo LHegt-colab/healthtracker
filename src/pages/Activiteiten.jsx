@@ -139,10 +139,17 @@ function ActivityForm({ types, initial, onSave, onClose }) {
   )
 }
 
+const SPORT_EMOJIS = [
+  '🏃','🚴','🏊','🚶','💪','🧘','🚣','⛷️','🎾','⚽','🏀','🏈','⚾','🎱','🏓',
+  '🏸','🥊','🤸','🏋️','🤼','🧗','🏇','🛹','🏄','🤽','🚵','🎿','🛷','🤺','🥋',
+  '🎯','🎳','🪂','🧜','🏌️','🤾','🏐','🏉','🎽','🩱','🥅','🎣','🤿','🪁','🎖️',
+]
+
 function TypeManager({ types, onRefresh, onClose }) {
   const addToast = useContext(ToastContext)
   const [name, setName] = useState('')
   const [icon, setIcon] = useState('🏃')
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const [fields, setFields] = useState(['duration', 'calories'])
   const [deleteId, setDeleteId] = useState(null)
 
@@ -166,6 +173,8 @@ function TypeManager({ types, onRefresh, onClose }) {
     if (error) { addToast('Fout bij toevoegen', 'error'); return }
     addToast('Sporttype toegevoegd')
     setName('')
+    setIcon('🏃')
+    setShowEmojiPicker(false)
     onRefresh()
   }
 
@@ -184,7 +193,34 @@ function TypeManager({ types, onRefresh, onClose }) {
       <div>
         <h3 className="text-sm font-semibold text-gray-700 mb-2">Nieuw type toevoegen</h3>
         <div className="flex gap-2 mb-2">
-          <input className="form-input w-16 text-center text-xl" value={icon} onChange={e => setIcon(e.target.value)} placeholder="📌" />
+          {/* Emoji picker knop */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowEmojiPicker(p => !p)}
+              className="form-input w-16 text-center text-2xl cursor-pointer hover:bg-gray-50 select-none"
+              title="Kies een icoontje"
+            >
+              {icon}
+            </button>
+            {showEmojiPicker && (
+              <div className="absolute top-full left-0 mt-1 z-50 bg-white border border-gray-200 rounded-xl shadow-xl p-2 w-64">
+                <p className="text-xs text-gray-400 mb-2 px-1">Kies een sport-icoontje</p>
+                <div className="grid grid-cols-8 gap-0.5 max-h-48 overflow-y-auto">
+                  {SPORT_EMOJIS.map(e => (
+                    <button
+                      key={e}
+                      type="button"
+                      onClick={() => { setIcon(e); setShowEmojiPicker(false) }}
+                      className={`text-xl p-1.5 rounded-lg hover:bg-teal-50 transition-colors ${icon === e ? 'bg-teal-100 ring-2 ring-teal-500' : ''}`}
+                    >
+                      {e}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
           <input className="form-input flex-1" placeholder="Naam sporttype" value={name} onChange={e => setName(e.target.value)} />
         </div>
         <div className="flex flex-wrap gap-2 mb-3">
