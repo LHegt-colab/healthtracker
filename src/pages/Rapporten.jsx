@@ -74,22 +74,26 @@ export default function Rapporten() {
     // Raw BP entries for print report
     setRawBpEntries(bpRes.data ?? [])
 
-    // Blood pressure: daily averages
-    const bpByDay = {}
-    ;(bpRes.data ?? []).forEach(e => {
+    // Blood pressure: individual measurements (alle metingen op dezelfde dag apart tonen)
+    const bpEntries = bpRes.data ?? []
+    const countByDay = {}
+    bpEntries.forEach(e => {
       const d = e.measured_at.split('T')[0]
-      if (!bpByDay[d]) bpByDay[d] = { sys: [], dia: [], hr: [] }
-      bpByDay[d].sys.push(e.systolic)
-      bpByDay[d].dia.push(e.diastolic)
-      if (e.heart_rate) bpByDay[d].hr.push(e.heart_rate)
+      countByDay[d] = (countByDay[d] || 0) + 1
     })
-    setBpData(Object.entries(bpByDay).map(([date, v]) => ({
-      date: format(new Date(date), 'd MMM', { locale: nl }),
-      fullDate: date,
-      systolisch: Math.round(v.sys.reduce((a, b) => a + b, 0) / v.sys.length),
-      diastolisch: Math.round(v.dia.reduce((a, b) => a + b, 0) / v.dia.length),
-      hartslag: v.hr.length ? Math.round(v.hr.reduce((a, b) => a + b, 0) / v.hr.length) : null,
-    })))
+    setBpData(bpEntries.map(e => {
+      const d = e.measured_at.split('T')[0]
+      const label = countByDay[d] > 1
+        ? format(new Date(e.measured_at), 'd MMM HH:mm', { locale: nl })
+        : format(new Date(e.measured_at), 'd MMM', { locale: nl })
+      return {
+        date: label,
+        timestamp: e.measured_at,
+        systolisch: e.systolic,
+        diastolisch: e.diastolic,
+        hartslag: e.heart_rate ?? null,
+      }
+    }))
 
     // Weight data
     setWeightData((wRes.data ?? []).map(w => ({
@@ -196,10 +200,10 @@ export default function Rapporten() {
                   <Legend />
                   <ReferenceLine y={120} stroke="#22c55e" strokeDasharray="4 4" label={{ value: 'Optimaal sys', fontSize: 10, fill: '#22c55e' }} />
                   <ReferenceLine y={140} stroke="#f97316" strokeDasharray="4 4" label={{ value: 'Grens hoog', fontSize: 10, fill: '#f97316' }} />
-                  <Area type="monotone" dataKey="systolisch" stroke="#1b3a6b" fill="#dbeafe" strokeWidth={2} name="Systolisch" />
-                  <Line type="monotone" dataKey="diastolisch" stroke="#0d9488" strokeWidth={2} dot={false} name="Diastolisch" />
+                  <Area type="monotone" dataKey="systolisch" stroke="#1b3a6b" fill="#dbeafe" strokeWidth={2} name="Systolisch" dot={{ r: 4, fill: '#1b3a6b' }} />
+                  <Line type="monotone" dataKey="diastolisch" stroke="#0d9488" strokeWidth={2} dot={{ r: 4, fill: '#0d9488' }} name="Diastolisch" />
                   {bpData.some(d => d.hartslag) && (
-                    <Line type="monotone" dataKey="hartslag" stroke="#ef4444" strokeWidth={2} dot={false} name="Hartslag (bpm)" />
+                    <Line type="monotone" dataKey="hartslag" stroke="#ef4444" strokeWidth={2} dot={{ r: 4, fill: '#ef4444' }} name="Hartslag (bpm)" />
                   )}
                 </ComposedChart>
               </ResponsiveContainer>
@@ -313,8 +317,8 @@ export default function Rapporten() {
             </div>
             <div className="stat-card">
               <span className="text-xs text-gray-500">BP metingen ({period}d)</span>
-              <span className="text-3xl font-bold text-navy-700">{bpData.reduce((s, d) => s + 1, 0)}</span>
-              <span className="text-xs text-gray-400">dagtotalen</span>
+              <span className="text-3xl font-bold text-navy-700">{bpData.length}</span>
+              <span className="text-xs text-gray-400">metingen</span>
             </div>
           </div>
         </div>
