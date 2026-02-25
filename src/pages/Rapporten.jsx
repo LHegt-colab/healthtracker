@@ -57,7 +57,74 @@ export default function Rapporten() {
   const [activityTypes, setActivityTypes] = useState([])
   const [actBySport, setActBySport] = useState([])
 
+  // Report-specific data (gefilterd op gekozen rapportperiode)
+  const [reportBpEntries, setReportBpEntries] = useState([])
+  const [reportWeightData, setReportWeightData] = useState([])
+  const [reportActBySport, setReportActBySport] = useState([])
+  const [reportNutData, setReportNutData] = useState([])
+  const [reportPeriodLabel, setReportPeriodLabel] = useState('')
+
   useEffect(() => { loadAll() }, [period])
+
+  async function loadForReport(periodConfig) {
+    let since, until, label
+    if (periodConfig.mode === 'days') {
+      since = subDays(new Date(), periodConfig.days).toISOString()
+      until = new Date().toISOString()
+      label = `laatste ${periodConfig.days} dagen`
+    } else {
+      since = periodConfig.dateFrom + 'T00:00:00'
+      until = periodConfig.dateTo + 'T23:59:59'
+      label = `${format(new Date(periodConfig.dateFrom), 'd MMM yyyy', { locale: nl })} t/m ${format(new Date(periodConfig.dateTo), 'd MMM yyyy', { locale: nl })}`
+    }
+
+    const [bpRes, wRes, aRes, nRes] = await Promise.all([
+      supabase.from('ht_blood_pressure').select('*').gte('measured_at', since).lte('measured_at', until).order('measured_at'),
+      supabase.from('ht_weight_entries').select('*').gte('measured_at', since).lte('measured_at', until).order('measured_at'),
+      supabase.from('ht_activities').select('*, ht_activity_types(name, icon)').gte('activity_date', since.split('T')[0]).lte('activity_date', until.split('T')[0]).order('activity_date'),
+      supabase.from('ht_nutrition_entries').select('*').gte('logged_at', since).lte('logged_at', until).order('logged_at'),
+    ])
+
+    const rWeightData = (wRes.data ?? []).map(w => ({
+      date: format(new Date(w.measured_at), 'd MMM', { locale: nl }),
+      gewicht: parseFloat(w.weight_kg),
+      bmi: w.bmi ? parseFloat(w.bmi) : null,
+    }))
+
+    const byType = {}
+    ;(aRes.data ?? []).forEach(a => {
+      const name = a.ht_activity_types?.name ?? 'Onbekend'
+      const icon = a.ht_activity_types?.icon ?? '🏃'
+      if (!byType[name]) byType[name] = { name: `${icon} ${name}`, count: 0, minuten: 0, kcal: 0 }
+      byType[name].count++
+      byType[name].minuten += Math.round((a.duration_seconds ?? 0) / 60)
+      byType[name].kcal += a.calories_burned ?? 0
+    })
+    const rActBySport = Object.values(byType).sort((a, b) => b.count - a.count)
+
+    const nutByDay = {}
+    ;(nRes.data ?? []).forEach(n => {
+      const d = n.logged_at.split('T')[0]
+      if (!nutByDay[d]) nutByDay[d] = { kcal: 0, eiwit: 0, koolhydraten: 0, vetten: 0 }
+      nutByDay[d].kcal += n.calories_kcal ?? 0
+      nutByDay[d].eiwit += n.protein_g ?? 0
+      nutByDay[d].koolhydraten += n.carbs_g ?? 0
+      nutByDay[d].vetten += n.fat_g ?? 0
+    })
+    const rNutData = Object.entries(nutByDay).map(([date, v]) => ({
+      date: format(new Date(date), 'd MMM', { locale: nl }),
+      Calorieën: Math.round(v.kcal),
+      Eiwit: Math.round(v.eiwit),
+      Koolhydraten: Math.round(v.koolhydraten),
+      Vetten: Math.round(v.vetten),
+    }))
+
+    setReportBpEntries(bpRes.data ?? [])
+    setReportWeightData(rWeightData)
+    setReportActBySport(rActBySport)
+    setReportNutData(rNutData)
+    setReportPeriodLabel(label)
+  }
 
   async function loadAll() {
     setLoading(true)
@@ -327,7 +394,8 @@ export default function Rapporten() {
       <PrintCategoryModal
         isOpen={showCategoryModal}
         onClose={() => setShowCategoryModal(false)}
-        onPrint={cats => {
+        onPrint={async (cats, periodConfig) => {
+          await loadForReport(periodConfig)
           setSelectedCategories(cats)
           setShowCategoryModal(false)
           setShowPrint(true)
@@ -338,12 +406,12 @@ export default function Rapporten() {
         isOpen={showPrint}
         onClose={() => setShowPrint(false)}
         type="rapporten"
-        title={`Gezondheidsrapport – laatste ${period} dagen`}
-        rawBpEntries={rawBpEntries}
-        weightData={weightData}
-        actBySport={actBySport}
-        nutData={nutData}
-        period={period}
+        title={`Gezondheidsrapport – ${reportPeriodLabel}`}
+        rawBpEntries={reportBpEntries}
+        weightData={reportWeightData}
+        actBySport={reportActBySport}
+        nutData={reportNutData}
+        period={reportPeriodLabel}
         profile={profile}
         selectedCategories={selectedCategories}
       />

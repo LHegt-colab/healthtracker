@@ -2,6 +2,10 @@ import { createPortal } from 'react-dom'
 import { format } from 'date-fns'
 import { nl } from 'date-fns/locale'
 import { Printer, X } from 'lucide-react'
+import {
+  ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid,
+  ReferenceLine, Legend, ResponsiveContainer,
+} from 'recharts'
 
 // ── Helpers ───────────────────────────────────────────────────────
 
@@ -75,9 +79,13 @@ function PatientBox({ profile }) {
 }
 
 function Meta({ period, count, printDate }) {
+  const periodStr = period == null ? null
+    : typeof period === 'number'
+      ? (period === 0 ? 'alle metingen' : `laatste ${period} dagen`)
+      : period
   return (
     <div style={{ display: 'flex', gap: '8mm', marginBottom: '4mm', fontSize: '9pt', color: '#555', flexWrap: 'wrap' }}>
-      {period != null && <span>Periode: {period === 0 ? 'alle metingen' : `laatste ${period} dagen`}</span>}
+      {periodStr && <span>Periode: {periodStr}</span>}
       {count != null && <span>Aantal records: {count}</span>}
       <span>Rapport gemaakt: {printDate}</span>
     </div>
@@ -112,14 +120,34 @@ function H2({ children }) {
 
 // ── Blood pressure content ────────────────────────────────────────
 
-function BloeddrukSection({ entries = [], showRefTable = true }) {
+function BloeddrukSection({ entries = [] }) {
   const sorted = [...entries].sort((a, b) => new Date(b.measured_at) - new Date(a.measured_at))
+  const ascending = [...entries].sort((a, b) => new Date(a.measured_at) - new Date(b.measured_at))
   const withHR = sorted.filter(e => e.heart_rate)
   const avg = sorted.length ? {
     sys: Math.round(sorted.reduce((s, e) => s + e.systolic, 0) / sorted.length),
     dia: Math.round(sorted.reduce((s, e) => s + e.diastolic, 0) / sorted.length),
     hr: withHR.length ? Math.round(withHR.reduce((s, e) => s + e.heart_rate, 0) / withHR.length) : null,
   } : null
+
+  // Chart data — smart labels (toon tijd als meerdere metingen op dezelfde dag)
+  const countByDay = {}
+  ascending.forEach(e => {
+    const d = e.measured_at.split('T')[0]
+    countByDay[d] = (countByDay[d] || 0) + 1
+  })
+  const chartData = ascending.map(e => {
+    const d = e.measured_at.split('T')[0]
+    const label = countByDay[d] > 1
+      ? format(new Date(e.measured_at), 'd MMM HH:mm', { locale: nl })
+      : format(new Date(e.measured_at), 'd MMM', { locale: nl })
+    return {
+      date: label,
+      systolisch: e.systolic,
+      diastolisch: e.diastolic,
+      hartslag: e.heart_rate ?? null,
+    }
+  })
 
   return (
     <>
@@ -131,6 +159,27 @@ function BloeddrukSection({ entries = [], showRefTable = true }) {
           <StatBox value={bpLabel(avg.sys, avg.dia)} label="Gemiddelde categorie" />
         </div>
       )}
+
+      {chartData.length > 0 && (
+        <div style={{ width: '100%', height: 210, marginBottom: '5mm' }}>
+          <ResponsiveContainer width="100%" height={210}>
+            <ComposedChart data={chartData} margin={{ top: 4, right: 16, bottom: 4, left: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis dataKey="date" tick={{ fontSize: 7, fill: '#6b7280' }} />
+              <YAxis tick={{ fontSize: 7, fill: '#6b7280' }} domain={['auto', 'auto']} width={28} />
+              <ReferenceLine y={120} stroke="#22c55e" strokeDasharray="4 4" label={{ value: 'Optimaal', fontSize: 7, fill: '#22c55e', position: 'right' }} />
+              <ReferenceLine y={140} stroke="#f97316" strokeDasharray="4 4" label={{ value: 'Grens hoog', fontSize: 7, fill: '#f97316', position: 'right' }} />
+              <Area type="monotone" dataKey="systolisch" stroke="#1b3a6b" fill="#dbeafe" strokeWidth={1.5} name="Systolisch" dot={{ r: 3, fill: '#1b3a6b' }} />
+              <Line type="monotone" dataKey="diastolisch" stroke="#0d9488" strokeWidth={1.5} dot={{ r: 3, fill: '#0d9488' }} name="Diastolisch" />
+              {chartData.some(d => d.hartslag) && (
+                <Line type="monotone" dataKey="hartslag" stroke="#ef4444" strokeWidth={1.5} dot={{ r: 3, fill: '#ef4444' }} name="Hartslag (bpm)" />
+              )}
+              <Legend wrapperStyle={{ fontSize: '8pt' }} />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
       {sorted.length === 0
         ? <p style={{ fontSize: '9pt', color: '#888', margin: '3mm 0' }}>Geen bloeddrukmetingen in deze periode.</p>
         : (
@@ -148,22 +197,6 @@ function BloeddrukSection({ entries = [], showRefTable = true }) {
           />
         )
       }
-      {showRefTable && (
-        <>
-          <H2>Referentiewaarden (WHO / ESC)</H2>
-          <PrintTable
-            headers={['Categorie', 'Systolisch', 'Diastolisch']}
-            rows={[
-              ['Optimaal', '< 120 mmHg', '< 80 mmHg'],
-              ['Normaal', '120–129 mmHg', '80–84 mmHg'],
-              ['Hoog-normaal', '130–139 mmHg', '85–89 mmHg'],
-              ['Hypertensie graad 1', '140–159 mmHg', '90–99 mmHg'],
-              ['Hypertensie graad 2', '160–179 mmHg', '100–109 mmHg'],
-              ['Hypertensie graad 3', '≥ 180 mmHg', '≥ 110 mmHg'],
-            ]}
-          />
-        </>
-      )}
     </>
   )
 }
@@ -177,7 +210,7 @@ function BloeddrukContent({ entries = [], period, printDate, profile }) {
       <PatientBox profile={profile} />
       <Meta period={period} count={entries.length} printDate={printDate} />
       <H2>Meetwaarden</H2>
-      <BloeddrukSection entries={entries} showRefTable={true} />
+      <BloeddrukSection entries={entries} />
       <PrintFooter printDate={printDate} />
     </>
   )
@@ -218,12 +251,7 @@ function RapportenContent({ rawBpEntries = [], weightData = [], actBySport = [],
       {has('bloeddruk') && (
         <>
           <H2>📊 Bloeddruk metingen</H2>
-          <BloeddrukSection entries={rawBpEntries} showRefTable={selectedCategories.length === 1} />
-          {selectedCategories.length > 1 && (
-            <p style={{ fontSize: '8pt', color: '#888', marginBottom: '4mm' }}>
-              * Referentiewaarden: Optimaal &lt;120/&lt;80 · Normaal 120–129/80–84 · Hoog-normaal 130–139/85–89 · Gr.1 140–159/90–99 · Gr.2 160–179/100–109 · Gr.3 ≥180/≥110 mmHg
-            </p>
-          )}
+          <BloeddrukSection entries={rawBpEntries} />
         </>
       )}
 
